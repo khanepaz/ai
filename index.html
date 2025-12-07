@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تشخیص وضعیت کاغذ</title>
+  <link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png" type="image/png">
+  <style>
+    body { font-family: Tahoma, sans-serif; text-align: center; padding: 20px; background: #f0f0f0; direction: rtl; }
+    h1 { color: #2c3e50; }
+    #preview { max-width: 300px; margin: 20px auto; border: 3px solid #3498db; border-radius: 10px; }
+    #label-container div { font-size: 22px; margin: 10px; padding: 10px; background: white; border-radius: 8px; }
+    .high { color: #27ae60; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>عکس کاغذ رو آپلود کن</h1>
+  <input type="file" id="upload" accept="image/*">
+  <br><br>
+  <img id="preview" src="" alt="پیش‌نمایش">
+  <div id="label-container"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+  <script>
+    const URL = "./my_model/";  // مسیر پوشه مدلت
+    let model;
+
+    async function loadModel() {
+      const modelURL = URL + "model.json";
+      const metadataURL = URL + "metadata.json";
+      model = await tmImage.load(modelURL, metadataURL);
+      document.getElementById("label-container").innerHTML = "<div>مدل آماده است! عکس آپلود کن</div>";
+    }
+
+    document.getElementById("upload").addEventListener("change", function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        const img = document.getElementById("preview");
+        img.src = ev.target.result;
+        img.onload = async function() {
+          const prediction = await model.predict(img);
+          let output = "";
+          let maxProb = 0;
+          let bestClass = "";
+
+          for (let i = 0; i < prediction.length; i++) {
+            const prob = (prediction[i].probability * 100).toFixed(1);
+            if (prediction[i].probability > maxProb) {
+              maxProb = prediction[i].probability;
+              bestClass = prediction[i].className;
+            }
+            const cls = prob > 50 ? "high" : "";
+            output += `<div class="${cls}">${prediction[i].className} → ${prob}%</div>`;
+          }
+          document.getElementById("label-container").innerHTML = 
+            `<div style="font-size:26px;color:#e74c3c">نتیجه: <b>${bestClass}</b> (${(maxProb*100).toFixed(1)}%)</div>` + output;
+        }
+      }
+      reader.readAsDataURL(file);
+    });
+
+    loadModel(); // خودکار مدل رو لود کن
+  </script>
+</body>
+</html>
